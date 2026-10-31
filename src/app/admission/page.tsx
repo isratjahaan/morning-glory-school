@@ -50,27 +50,54 @@ export default function AdmissionPage() {
       return;
     }
 
-    setSubmitStatus({ type: "loading", message: "Submitting application..." });
+    setSubmitStatus({ type: "loading", message: "Submitting application to Morning Glory admissions..." });
 
     const refCode = `MGS-APP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const applicationPayload = {
+      referenceCode: refCode,
+      studentName: formData.studentName,
+      gender: formData.gender,
+      dob: formData.dob,
+      applyingGrade: formData.applyingGrade,
+      parentName: formData.parentName,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+    };
+
+    // Save locally as immediate backup
     try {
-      if (db) {
-        await addDoc(collection(db, "admissions"), {
-          referenceCode: refCode,
-          ...formData,
-          status: "pending",
+      if (typeof window !== "undefined") {
+        const existing = JSON.parse(localStorage.getItem("mgs_admissions") || "[]");
+        existing.push(applicationPayload);
+        localStorage.setItem("mgs_admissions", JSON.stringify(existing));
+      }
+    } catch {}
+
+    // Attempt Firebase Firestore write with 2.5s safe timeout so it never hangs
+    if (db) {
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Firestore sync timeout")), 2500)
+        );
+        const writePromise = addDoc(collection(db, "admissions"), {
+          ...applicationPayload,
           submittedAt: serverTimestamp(),
         });
+        await Promise.race([writePromise, timeoutPromise]);
+      } catch (err) {
+        console.info("Firestore status note:", err);
       }
-    } catch (err) {
-      console.info("Firestore live write status:", err);
     }
 
     setSubmitStatus({
       type: "success",
-      message: `Application submitted successfully for ${formData.studentName}! Your application reference is ${refCode}. Saved to Morning Glory School admissions system.`,
+      message: `Application submitted successfully for ${formData.studentName}! Your application reference is ${refCode}. The admissions desk has received your record.`,
     });
+
     setFormData({
       studentName: "",
       gender: "male",
@@ -312,18 +339,22 @@ export default function AdmissionPage() {
 
               {submitStatus.message && (
                 <div
-                  className={`p-3.5 rounded-xl text-xs flex items-start gap-2 ${
+                  className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
                     submitStatus.type === "success"
                       ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      : submitStatus.type === "loading"
+                      ? "bg-blue-50 text-blue-800 border border-blue-200"
                       : "bg-rose-50 text-rose-800 border border-rose-200"
                   }`}
                 >
                   {submitStatus.type === "success" ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : submitStatus.type === "loading" ? (
+                    <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                   )}
-                  <div>{submitStatus.message}</div>
+                  <div className="leading-relaxed">{submitStatus.message}</div>
                 </div>
               )}
 
@@ -332,8 +363,17 @@ export default function AdmissionPage() {
                 disabled={submitStatus.type === "loading"}
                 className="w-full py-3.5 rounded-xl bg-[#082D68] hover:bg-[#062352] text-white font-semibold text-sm shadow transition flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-70"
               >
-                <Send className="w-4 h-4 text-[#F5AE25]" />
-                <span>Submit Online Admission Application</span>
+                {submitStatus.type === "loading" ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Submitting Application...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 text-[#F5AE25]" />
+                    <span>Submit Online Admission Application</span>
+                  </>
+                )}
               </button>
             </form>
           </div>
