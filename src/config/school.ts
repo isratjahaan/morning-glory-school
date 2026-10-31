@@ -1,0 +1,162 @@
+import { HighlightItem, QuickAccessItem, SchoolInfo, StatisticItem } from "@/types";
+
+export const SCHOOL_INFO: SchoolInfo = {
+  name: "Morning Glory School",
+  tagline: "Learn • Grow • Excel",
+  address: "123 Education Road, Chattogram",
+  phone: "+880 1851 121257",
+  email: "info@morningglory.edu.bd",
+  established: 2011,
+  accreditation: "Registered with National Education Board & Cambridge International Associate",
+  socials: {
+    facebook: "https://facebook.com/morninggloryschool",
+    youtube: "https://youtube.com/@morninggloryschool",
+    linkedin: "https://linkedin.com/company/morning-glory-school",
+  },
+};
+
+export const SCHOOL_HIGHLIGHTS: HighlightItem[] = [
+  {
+    id: "academic-excellence",
+    title: "Academic Excellence",
+    iconName: "GraduationCap",
+    description: "Consistent 100% board exam pass rates and national academic awards.",
+  },
+  {
+    id: "skilled-teachers",
+    title: "Skilled Teachers",
+    iconName: "Trophy",
+    description: "Highly qualified, passionate educators certified in modern pedagogical methods.",
+  },
+  {
+    id: "modern-curriculum",
+    title: "Modern Curriculum",
+    iconName: "BookOpen",
+    description: "Holistic, future-ready curriculum blending core STEM, humanities, and arts.",
+  },
+  {
+    id: "safe-environment",
+    title: "Safe & Friendly Environment",
+    iconName: "Landmark",
+    description: "Secure, inclusive campus equipped with 24/7 CCTV surveillance and caring staff.",
+  },
+  {
+    id: "holistic-development",
+    title: "Holistic Development",
+    iconName: "Users",
+    description: "Robust extracurricular programs in sports, debate, robotics, and community service.",
+  },
+  {
+    id: "bright-future",
+    title: "Bright Future",
+    iconName: "Star",
+    description: "Guiding students towards prestigious universities and meaningful career paths.",
+  },
+];
+
+export const SCHOOL_STATISTICS: StatisticItem[] = [
+  {
+    id: "students",
+    value: "1,200+",
+    label: "Happy Students",
+    iconName: "Users",
+  },
+  {
+    id: "teachers",
+    value: "100+",
+    label: "Expert Teachers",
+    iconName: "UserCheck",
+  },
+  {
+    id: "success-rate",
+    value: "95%",
+    label: "Success Rate",
+    iconName: "Trophy",
+  },
+  {
+    id: "excellence",
+    value: "15+",
+    label: "Years of Excellence",
+    iconName: "Star",
+  },
+];
+
+export const QUICK_ACCESS_ITEMS: QuickAccessItem[] = [
+  {
+    id: "online-admission",
+    title: "Online Admission",
+    href: "/admission",
+    iconName: "BookOpen",
+    bgColor: "bg-[#EAF3FF] hover:bg-[#DCEBFF]",
+    textColor: "text-[#082D68]",
+    iconColor: "text-[#1554B8]",
+    borderColor: "border-[#D0E2FF]",
+    description: "Apply for 2026-27 Academic Session online",
+  },
+  {
+    id: "class-routine",
+    title: "Class Routine",
+    href: "/academics#routine",
+    iconName: "Calendar",
+    bgColor: "bg-[#E8F8F2] hover:bg-[#D5F3E7]",
+    textColor: "text-[#065F46]",
+    iconColor: "text-[#059669]",
+    borderColor: "border-[#C6F0DE]",
+    description: "Download weekly class schedules and exam timetables",
+  },
+  {
+    id: "view-results",
+    title: "View Results",
+    href: "/results",
+    iconName: "BarChart3",
+    bgColor: "bg-[#F3E8FF] hover:bg-[#E9D5FF]",
+    textColor: "text-[#581C87]",
+    iconColor: "text-[#7E22CE]",
+    borderColor: "border-[#E0C9FF]",
+    description: "Check semester grade sheets and board examinations",
+  },
+  {
+    id: "pay-fees",
+    title: "Pay Fees",
+    href: "/admission#fees",
+    iconName: "CreditCard",
+    bgColor: "bg-[#ECFDF5] hover:bg-[#D1FAE5]",
+    textColor: "text-[#065F46]",
+    iconColor: "text-[#10B981]",
+    borderColor: "border-[#A7F3D0]",
+    description: "Secure online payment for tuition and term fees",
+  },
+  {
+    id: "library",
+    title: "Library",
+    href: "/academics#library",
+    iconName: "Library",
+    bgColor: "bg-[#E0F2FE] hover:bg-[#BAE6FD]",
+    textColor: "text-[#075985]",
+    iconColor: "text-[#0284C7]",
+    borderColor: "border-[#BAE6FD]",
+    description: "Browse 15,000+ digital books and catalog resources",
+  },
+  {
+    id: "transport",
+    title: "Transport",
+    href: "/about#transport",
+    iconName: "Bus",
+    bgColor: "bg-[#EFF6FF] hover:bg-[#DBEAFE]",
+    textColor: "text-[#1E40AF]",
+    iconColor: "text-[#2563EB]",
+    borderColor: "border-[#BFDBFE]",
+    description: "School bus routes, pickup points, and GPS tracking",
+  },
+  {
+    id: "contact-us",
+    title: "Contact Us",
+    href: "/contact",
+    iconName: "Mail",
+    bgColor: "bg-[#FAF5FF] hover:bg-[#F3E8FF]",
+    textColor: "text-[#6B21A8]",
+    iconColor: "text-[#9333EA]",
+    borderColor: "border-[#E9D5FF]",
+    description: "Get in touch with administration or schedule a visit",
+  },
+];
