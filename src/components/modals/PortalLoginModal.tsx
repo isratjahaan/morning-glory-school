@@ -46,7 +46,12 @@ export function PortalLoginModal({
       } catch (err: unknown) {
         setIsLoading(false);
         const errMsg = err instanceof Error ? err.message : "Authentication failed";
-        if (errMsg.includes("user-not-found") || errMsg.includes("invalid-credential")) {
+        if (errMsg.includes("configuration-not-found")) {
+          setStatusMessage({
+            type: "info",
+            text: `Firebase Authentication চালু করতে Firebase Console > Authentication > Sign-in method এ গিয়ে "Email/Password" এনাবল (Enable) করে দিন।`,
+          });
+        } else if (errMsg.includes("user-not-found") || errMsg.includes("invalid-credential")) {
           setStatusMessage({
             type: "info",
             text: `Firebase connected (morning-glory-school-d3d6a). User account not registered yet in Firebase Auth console for this email. Please create a user in Firebase Authentication > Users.`,
