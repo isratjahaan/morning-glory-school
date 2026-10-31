@@ -2,7 +2,8 @@
 "use client";
 
 import React from "react";
-import { MapPin, Phone, Mail, User } from "lucide-react";
+import Link from "next/link";
+import { MapPin, Phone, Mail, User, Shield } from "lucide-react";
 import { SCHOOL_INFO } from "@/config/school";
 import { PORTAL_LINKS } from "@/config/navigation";
 
@@ -38,7 +39,7 @@ export function TopBar({ onOpenPortalModal }: TopBarProps) {
           </a>
         </div>
 
-        {/* Right: Portals Login */}
+        {/* Right: Portals Login & Admin Panel */}
         <div className="flex items-center divide-x divide-white/20 text-[11px] sm:text-[12px] font-medium">
           {PORTAL_LINKS.map((portal) => (
             <button
@@ -52,6 +53,15 @@ export function TopBar({ onOpenPortalModal }: TopBarProps) {
               <span>{portal.label}</span>
             </button>
           ))}
+
+          <Link
+            href="/admin"
+            className="px-2.5 sm:px-3 text-[#F5AE25] hover:text-white transition-colors flex items-center gap-1 font-bold"
+            title="Open School Administration Panel"
+          >
+            <Shield className="w-3 h-3 text-[#F5AE25]" />
+            <span>Admin</span>
+          </Link>
         </div>
       </div>
     </div>
