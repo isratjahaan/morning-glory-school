@@ -68,7 +68,18 @@ export default function AdmissionPage() {
       submittedAt: new Date().toISOString(),
     };
 
-    // Save locally as immediate backup
+    // 1. Submit to global cloud registry (/api/admissions) for instant cross-device admin sync
+    try {
+      await fetch("/api/admissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(applicationPayload),
+      });
+    } catch (apiErr) {
+      console.warn("Cloud sync note:", apiErr);
+    }
+
+    // 2. Save locally as immediate client backup
     try {
       if (typeof window !== "undefined") {
         const existing = JSON.parse(localStorage.getItem("mgs_admissions") || "[]");
@@ -77,11 +88,11 @@ export default function AdmissionPage() {
       }
     } catch {}
 
-    // Attempt Firebase Firestore write with 2.5s safe timeout so it never hangs
+    // 3. Attempt Firebase Firestore write if configured
     if (db) {
       try {
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Firestore sync timeout")), 2500)
+          setTimeout(() => reject(new Error("Firestore sync timeout")), 2000)
         );
         const writePromise = addDoc(collection(db, "admissions"), {
           ...applicationPayload,

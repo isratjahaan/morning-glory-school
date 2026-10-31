@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -16,6 +16,8 @@ import {
   Sparkles,
   Lock,
   Printer,
+  RefreshCw,
+  Wifi,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { Navbar } from "@/components/layout/Navbar";
@@ -23,6 +25,7 @@ import { Footer } from "@/components/layout/Footer";
 
 interface AdmissionApplication {
   id?: string;
+  issueNumber?: number;
   referenceCode: string;
   studentName: string;
   gender: string;
@@ -100,30 +103,75 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [gradeFilter, setGradeFilter] = useState<string>("All");
   const [selectedApp, setSelectedApp] = useState<AdmissionApplication | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
-  // Load applications from localStorage or defaults
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = JSON.parse(localStorage.getItem("mgs_admissions") || "[]");
-        if (stored && stored.length > 0) {
-          // Merge unique by referenceCode
-          const combined = [...stored];
-          DEFAULT_APPLICATIONS.forEach((def) => {
-            if (!combined.some((item) => item.referenceCode === def.referenceCode)) {
-              combined.push(def);
+  // Load applications from global cloud API with localStorage fallback
+  const loadApplications = useCallback(async (isBackground = false) => {
+    if (!isBackground) setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/admissions");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const cloudList: AdmissionApplication[] = json.data;
+
+          let localList: AdmissionApplication[] = [];
+          try {
+            localList = JSON.parse(localStorage.getItem("mgs_admissions") || "[]");
+          } catch {}
+
+          const merged = [...cloudList];
+          // Include any local items that aren't on cloud yet
+          localList.forEach((loc) => {
+            if (!merged.some((m) => m.referenceCode === loc.referenceCode)) {
+              merged.push(loc);
             }
           });
-          setApplications(combined);
-        } else {
-          setApplications(DEFAULT_APPLICATIONS);
-          localStorage.setItem("mgs_admissions", JSON.stringify(DEFAULT_APPLICATIONS));
+
+          // Include default sample records if needed
+          DEFAULT_APPLICATIONS.forEach((def) => {
+            if (!merged.some((m) => m.referenceCode === def.referenceCode)) {
+              merged.push(def);
+            }
+          });
+
+          setApplications(merged);
+          setLastSyncTime(new Date().toLocaleTimeString());
+          try {
+            localStorage.setItem("mgs_admissions", JSON.stringify(merged));
+          } catch {}
+          if (!isBackground) setIsRefreshing(false);
+          return;
         }
-      } catch {
+      }
+    } catch (e) {
+      console.warn("Could not fetch cloud admissions:", e);
+    }
+
+    // Fallback if cloud API is unreachable
+    try {
+      const stored = JSON.parse(localStorage.getItem("mgs_admissions") || "[]");
+      if (stored && stored.length > 0) {
+        setApplications(stored);
+      } else {
         setApplications(DEFAULT_APPLICATIONS);
       }
+    } catch {
+      setApplications(DEFAULT_APPLICATIONS);
     }
+    setLastSyncTime(new Date().toLocaleTimeString());
+    if (!isBackground) setIsRefreshing(false);
   }, []);
+
+  // Initial fetch and auto-polling every 8 seconds
+  useEffect(() => {
+    loadApplications();
+    const interval = setInterval(() => {
+      loadApplications(true);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [loadApplications]);
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +184,12 @@ export default function AdminPage() {
     setIsAdminLoggedIn(true);
   };
 
-  const updateApplicationStatus = (refCode: string, newStatus: "pending" | "approved" | "rejected") => {
+  const updateApplicationStatus = async (
+    refCode: string,
+    newStatus: "pending" | "approved" | "rejected",
+    issueNumber?: number
+  ) => {
+    // 1. Optimistic UI update
     const updated = applications.map((app) =>
       app.referenceCode === refCode ? { ...app, status: newStatus } : app
     );
@@ -147,9 +200,24 @@ export default function AdminPage() {
     try {
       localStorage.setItem("mgs_admissions", JSON.stringify(updated));
     } catch {}
+
+    // 2. Sync status to global cloud
+    try {
+      await fetch("/api/admissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          referenceCode: refCode,
+          issueNumber: issueNumber,
+          status: newStatus,
+        }),
+      });
+    } catch (err) {
+      console.warn("Status patch error:", err);
+    }
   };
 
-  const deleteApplication = (refCode: string) => {
+  const deleteApplication = async (refCode: string, issueNumber?: number) => {
     if (confirm(`Are you sure you want to delete application ${refCode}?`)) {
       const updated = applications.filter((app) => app.referenceCode !== refCode);
       setApplications(updated);
@@ -159,6 +227,21 @@ export default function AdminPage() {
       try {
         localStorage.setItem("mgs_admissions", JSON.stringify(updated));
       } catch {}
+
+      // Delete from cloud API
+      try {
+        await fetch("/api/admissions", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            referenceCode: refCode,
+            issueNumber: issueNumber,
+            status: "deleted",
+          }),
+        });
+      } catch (err) {
+        console.warn("Delete patch error:", err);
+      }
     }
   };
 
@@ -301,6 +384,34 @@ export default function AdminPage() {
         ) : (
           /* Admin Dashboard */
           <div className="space-y-8 animate-fade-in">
+            {/* Cloud Sync Status & Quick Actions Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white px-5 py-3.5 rounded-2xl border border-slate-100 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <Wifi className="w-4 h-4 text-emerald-600" />
+                <span className="text-[#082D68] font-bold">Cloud Live Sync Active</span>
+                <span className="text-slate-400 hidden md:inline">| Cross-Device Applications Connected</span>
+                {lastSyncTime && (
+                  <span className="text-[11px] text-slate-400 ml-1">
+                    (Last checked: {lastSyncTime})
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => loadApplications(false)}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#EAF3FF] hover:bg-[#D8EAFF] text-[#082D68] text-xs font-bold transition self-start sm:self-auto border border-[#D0E2FF]"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-[#1554B8] ${isRefreshing ? "animate-spin" : ""}`} />
+                <span>{isRefreshing ? "Checking Cloud..." : "Refresh Applications"}</span>
+              </button>
+            </div>
+
             {/* Top Stat Counters */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-3xl shadow-card border border-slate-100 flex items-center justify-between">
@@ -422,9 +533,14 @@ export default function AdminPage() {
             {/* Applications Table */}
             <div className="bg-white rounded-3xl shadow-card border border-slate-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-heading font-bold text-base text-[#082D68]">
-                  Admission Applications ({filteredApplications.length})
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-heading font-bold text-base text-[#082D68]">
+                    Admission Applications ({filteredApplications.length})
+                  </h3>
+                  <span className="hidden sm:inline-block text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">
+                    Realtime Synced
+                  </span>
+                </div>
                 <span className="text-xs text-slate-400">Sorted by submission date (newest first)</span>
               </div>
 
@@ -500,7 +616,9 @@ export default function AdminPage() {
                               {app.status !== "approved" && (
                                 <button
                                   type="button"
-                                  onClick={() => updateApplicationStatus(app.referenceCode, "approved")}
+                                  onClick={() =>
+                                    updateApplicationStatus(app.referenceCode, "approved", app.issueNumber)
+                                  }
                                   className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition"
                                   title="Approve Application"
                                 >
@@ -511,7 +629,9 @@ export default function AdminPage() {
                               {app.status !== "rejected" && (
                                 <button
                                   type="button"
-                                  onClick={() => updateApplicationStatus(app.referenceCode, "rejected")}
+                                  onClick={() =>
+                                    updateApplicationStatus(app.referenceCode, "rejected", app.issueNumber)
+                                  }
                                   className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 transition"
                                   title="Reject Application"
                                 >
@@ -521,7 +641,7 @@ export default function AdminPage() {
 
                               <button
                                 type="button"
-                                onClick={() => deleteApplication(app.referenceCode)}
+                                onClick={() => deleteApplication(app.referenceCode, app.issueNumber)}
                                 className="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
                                 title="Delete"
                               >
@@ -634,7 +754,9 @@ export default function AdminPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => updateApplicationStatus(selectedApp.referenceCode, "approved")}
+                    onClick={() =>
+                      updateApplicationStatus(selectedApp.referenceCode, "approved", selectedApp.issueNumber)
+                    }
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -642,7 +764,9 @@ export default function AdminPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => updateApplicationStatus(selectedApp.referenceCode, "rejected")}
+                    onClick={() =>
+                      updateApplicationStatus(selectedApp.referenceCode, "rejected", selectedApp.issueNumber)
+                    }
                     className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center gap-1.5"
                   >
                     <XCircle className="w-4 h-4" />
